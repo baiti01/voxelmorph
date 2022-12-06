@@ -1,2 +1,9 @@
+# project
+
+.idea
+build
+dist
+models
+
 __pycache__/
 scratch/*

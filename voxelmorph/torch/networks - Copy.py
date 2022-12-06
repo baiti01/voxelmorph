@@ -8,7 +8,6 @@ from .. import default_unet_features
 from . import layers
 from .modelio import LoadableModel, store_config_args
 
-from monai.networks.nets import SegResNet
 
 class Unet(nn.Module):
     """
@@ -197,23 +196,19 @@ class VxmDense(LoadableModel):
         assert ndims in [1, 2, 3], 'ndims should be one of 1, 2, or 3. found: %d' % ndims
 
         # configure core unet model
-        if False:
-            self.unet_model = Unet(
-                inshape,
-                infeats=(src_feats + trg_feats),
-                nb_features=nb_unet_features,
-                nb_levels=nb_unet_levels,
-                feat_mult=unet_feat_mult,
-                nb_conv_per_level=nb_unet_conv_per_level,
-                half_res=unet_half_res,
-            )
-        else:
-            self.seg_resnet = SegResNet(in_channels=2, out_channels=16)
+        self.unet_model = Unet(
+            inshape,
+            infeats=(src_feats + trg_feats),
+            nb_features=nb_unet_features,
+            nb_levels=nb_unet_levels,
+            feat_mult=unet_feat_mult,
+            nb_conv_per_level=nb_unet_conv_per_level,
+            half_res=unet_half_res,
+        )
 
         # configure unet to flow field layer
         Conv = getattr(nn, 'Conv%dd' % ndims)
-        #self.flow = Conv(self.unet_model.final_nf, ndims, kernel_size=3, padding=1)
-        self.flow = Conv(16, ndims, kernel_size=3, padding=1)
+        self.flow = Conv(self.unet_model.final_nf, ndims, kernel_size=3, padding=1)
 
         # init flow layer with small weights and bias
         self.flow.weight = nn.Parameter(Normal(0, 1e-5).sample(self.flow.weight.shape))
@@ -246,6 +241,8 @@ class VxmDense(LoadableModel):
         # configure transformer
         self.transformer = layers.SpatialTransformer(inshape)
 
+
+
     def forward(self, source, target, registration=False):
         '''
         Parameters:
@@ -256,8 +253,7 @@ class VxmDense(LoadableModel):
 
         # concatenate inputs and propagate unet
         x = torch.cat([source, target], dim=1)
-        #x = self.unet_model(x)
-        x = self.seg_resnet(x)
+        x = self.unet_model(x)
 
         # transform into flow field
         flow_field = self.flow(x)
@@ -285,6 +281,8 @@ class VxmDense(LoadableModel):
         # warp image with flow field
         y_source = self.transformer(source, pos_flow)
         y_target = self.transformer(target, neg_flow) if self.bidir else None
+
+        return flow_field
 
         # return non-integrated flow field if training
         if not registration:

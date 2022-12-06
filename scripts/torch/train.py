@@ -79,7 +79,7 @@ parser.add_argument('--dec', type=int, nargs='+',
                     help='list of unet decorder filters (default: 32 32 32 32 32 16 16)')
 parser.add_argument('--int-steps', type=int, default=7,
                     help='number of integration steps (default: 7)')
-parser.add_argument('--int-downsize', type=int, default=2,
+parser.add_argument('--int-downsize', type=int, default=1,
                     help='flow downsample factor for integration (default: 2)')
 parser.add_argument('--bidir', action='store_true', help='enable bidirectional cost function')
 
@@ -123,7 +123,7 @@ os.makedirs(model_dir, exist_ok=True)
 gpus = args.gpu.split(',')
 nb_gpus = len(gpus)
 device = 'cuda'
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+#os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 assert np.mod(args.batch_size, nb_gpus) == 0, \
     'Batch size (%d) should be a multiple of the nr of gpus (%d)' % (args.batch_size, nb_gpus)
 
@@ -191,7 +191,6 @@ for epoch in range(args.initial_epoch, args.epochs):
     epoch_step_time = []
 
     for step in range(args.steps_per_epoch):
-
         step_start_time = time.time()
 
         # generate inputs (and true outputs) and convert them to tensors
@@ -209,6 +208,7 @@ for epoch in range(args.initial_epoch, args.epochs):
             curr_loss = loss_function(y_true[n], y_pred[n]) * weights[n]
             loss_list.append(curr_loss.item())
             loss += curr_loss
+            break
 
         epoch_loss.append(loss_list)
         epoch_total_loss.append(loss.item())
